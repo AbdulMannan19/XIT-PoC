@@ -1,16 +1,6 @@
 import requests
 
 def evaluate_tps(model_name, prompt):
-    """
-    Evaluate tokens per second for a given model and prompt.
-    
-    Args:
-        model_name: The Ollama model identifier
-        prompt: The input prompt to generate from
-        
-    Returns:
-        float: Tokens per second during generation phase
-    """
     url = "http://localhost:11434/api/generate"
     payload = {
         "model": model_name,
@@ -31,22 +21,28 @@ def evaluate_tps(model_name, prompt):
 def main():
     prompt = "Explain the architectural differences between monolithic and microservice application designs in deep technical detail."
     
+    models = [
+        ("llama3.1:8b-instruct-fp16", "FP16 (full precision)"),
+        ("llama3.1:8b-instruct-q8_0", "Q8_0 (8-bit)"),
+        ("llama3.1:8b-instruct-q4_K_M", "Q4_K_M (4-bit improved)"),
+        ("llama3.1:8b", "Q4_0 (4-bit default)")
+    ]
+    
     print("Starting TPS benchmark...\n")
     
-    # Evaluate FP16 model
-    print("Evaluating FP16 model...")
-    tps_fp16 = evaluate_tps("llama3.1:8b-instruct-fp16", prompt)
-    print(f"Model: FP16 | TPS: {tps_fp16:.2f}\n")
+    results = []
+    for model_name, label in models:
+        print(f"Evaluating {label}...")
+        tps = evaluate_tps(model_name, prompt)
+        results.append((label, tps))
+        print(f"Model: {label} | TPS: {tps:.2f}\n")
     
-    # Evaluate Q4_K_M model
-    print("Evaluating Q4_K_M model...")
-    tps_q4 = evaluate_tps("llama3.1:8b-instruct-q4_K_M", prompt)
-    print(f"Model: Q4_K_M | TPS: {tps_q4:.2f}\n")
-    
-    # Calculate speedup
-    if tps_fp16 > 0:
-        speedup = (tps_q4 / tps_fp16) * 100
-        print(f"Q4_K_M is {speedup:.1f}% the speed of FP16")
+    print("\nComparison (relative to FP16):")
+    fp16_tps = results[0][1]
+    for label, tps in results[1:]:
+        if fp16_tps > 0:
+            speedup = (tps / fp16_tps) * 100
+            print(f"{label} is {speedup:.1f}% the speed of FP16")
 
 if __name__ == "__main__":
     main()
